@@ -2,6 +2,7 @@ export interface FetcherResponse<T> {
   data: T | null;
   status: number;
   statusText: string;
+  error?: string
 }
 
 export class Fetcher {
@@ -64,9 +65,41 @@ export class Fetcher {
     responsePromise: Promise<Response>,
   ): Promise<FetcherResponse<T>> {
     const response = await responsePromise;
-    const responseText = response.ok ? await response.text() : '';
-    const data = responseText ? JSON.parse(responseText) : null;
-    return { data, status: response.status, statusText: response.statusText };
+
+    let data: T | null = null;
+    let error = '';
+    let responseText = '';
+
+    try {
+      responseText = await response.text();
+      if (response.ok) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          data = null;
+        }
+      } else {
+        try {
+          const errorData = JSON.parse(responseText);
+
+          error =
+            errorData?.message ||
+            errorData?.description ||
+            errorData?.error ||
+            response.statusText;
+        } catch {
+          error = responseText || response.statusText;
+        }
+      }
+    } catch {
+    }
+
+    return {
+      data,
+      status: response.status,
+      statusText: response.statusText,
+      error,
+    };
   }
 }
 
